@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inline Commenting System</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 p-6">
+
+    <div class="max-w-3xl mx-auto">
+        <!-- Reset Button -->
+        <div class="flex justify-end mb-4">
+            <button onclick="resetComments()" class="bg-cyan-500 text-white px-4 py-2 rounded-lg">Reset</button>
+        </div>
+
+        <!-- Comments Section -->
+        <div id="commentsContainer" class="space-y-4">
+            <!-- Comments will be dynamically generated here -->
+        </div>
+
+        <!-- New Comment Input -->
+        <div class="bg-white p-4 shadow-md rounded-lg mt-4 flex items-start space-x-4">
+            <img src="https://i.pravatar.cc/40?u=me" alt="User Avatar" class="rounded-full w-10 h-10">
+            <div class="w-full">
+                <textarea id="newComment" class="w-full p-2 border rounded-lg resize-none" placeholder="Add a comment..."></textarea>
+                <div class="flex justify-end space-x-2 mt-2">
+                    <button onclick="cancelComment()" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg">Cancel</button>
+                    <button onclick="postComment()" class="bg-blue-500 text-white px-4 py-2 rounded-lg">Post</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample comments data for demonstration
+        let commentsData = [
+            {
+                id: 1,
+                author: "John Doe",
+                text: "Welcome! You can reply to the comments. But you can't delete the initial comment.",
+                replies: [
+                    {
+                        id: 2,
+                        author: "User 1",
+                        text: "You can reply nested or delete any comment. You can edit the existing comments.",
+                    },
+                    {
+                        id: 3,
+                        author: "User 2",
+                        text: "Refresh & see the changes persist. You can reset the comments to the initial state.",
+                    }
+                ]
+            }
+        ];
+
+        // Initialize comments on page load
+        document.addEventListener("DOMContentLoaded", () => {
+            renderComments();
+        });
+
+        // Render all comments
+        function renderComments() {
+            const container = document.getElementById("commentsContainer");
+            container.innerHTML = '';
+            commentsData.forEach((comment, index) => {
+                container.appendChild(createCommentElement(comment, index === 0));
+            });
+        }
+
+        // Create comment HTML structure
+        function createCommentElement(comment, isFirst = false, isReply = false) {
+            const commentDiv = document.createElement("div");
+            commentDiv.className = `bg-gray-200 p-4 rounded-lg shadow-sm ${isReply ? 'ml-12' : ''} flex items-start space-x-4`;
+
+            commentDiv.innerHTML = `
+                <img src="https://i.pravatar.cc/40?u=${comment.id}" alt="Avatar" class="rounded-full w-10 h-10">
+                <div class="w-full">
+                    <h4 class="font-semibold">${comment.author}</h4>
+                    <p id="commentText-${comment.id}" class="text-gray-700">${comment.text}</p>
+                    <div id="editContainer-${comment.id}" class="hidden mt-2">
+                        <textarea id="editText-${comment.id}" class="w-full p-2 border rounded-lg resize-none">${comment.text}</textarea>
+                        <div class="flex justify-end space-x-2 mt-2">
+                            <button onclick="cancelEdit(${comment.id})" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg">Cancel</button>
+                            <button onclick="saveEdit(${comment.id})" class="bg-blue-500 text-white px-4 py-2 rounded-lg">Save</button>
+                        </div>
+                    </div>
+                    <div class="mt-2 space-x-2">
+                        <button onclick="showReplyInput(${comment.id})" class="text-blue-500">Reply</button>
+                        ${!isFirst ? `<button onclick="enableEdit(${comment.id})" class="text-gray-500">Edit</button>` : ''}
+                        ${!isFirst ? `<button onclick="deleteComment(${comment.id})" class="text-gray-500">Delete</button>` : ''}
+                    </div>
+                    <div id="replies-${comment.id}" class="mt-4 space-y-2">
+                        <!-- Replies go here -->
+                    </div>
+                    <div id="replyInput-${comment.id}" class="mt-2 hidden">
+                        <!-- Reply input area -->
+                        <div class="flex items-start space-x-2">
+                            <img src="https://i.pravatar.cc/40?u=me" alt="User Avatar" class="rounded-full w-10 h-10">
+                            <textarea class="w-full p-2 border rounded-lg resize-none" id="replyText-${comment.id}" placeholder="Write a reply..."></textarea>
+                        </div>
+                        <div class="flex justify-end space-x-2 mt-2">
+                            <button onclick="cancelReply(${comment.id})" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg">Cancel</button>
+                            <button onclick="postReply(${comment.id})" class="bg-blue-500 text-white px-4 py-2 rounded-lg">Post</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Render replies if they exist
+            if (comment.replies && comment.replies.length) {
+                const repliesContainer = commentDiv.querySelector(`#replies-${comment.id}`);
+                comment.replies.forEach(reply => {
+                    repliesContainer.appendChild(createCommentElement(reply, false, true));
+                });
+            }
+
+            return commentDiv;
+        }
+
+        // Show reply input box
+        function showReplyInput(commentId) {
+            document.getElementById(`replyInput-${commentId}`).classList.remove("hidden");
+        }
+
+        // Cancel reply input
+        function cancelReply(commentId) {
+            document.getElementById(`replyInput-${commentId}`).classList.add("hidden");
+            document.getElementById(`replyText-${commentId}`).value = '';
+        }
+
+        // Post a new reply
+        function postReply(commentId) {
+            const replyText = document.getElementById(`replyText-${commentId}`).value;
+            if (!replyText) return;
+
+            const newReply = {
+                id: Date.now(),
+                author: "New User",
+                text: replyText
+            };
+
+            const comment = findCommentById(commentId);
+            if (comment) {
+                comment.replies.push(newReply);
+            }
+
+            renderComments();
+        }
+
+        // Enable edit mode
+        function enableEdit(commentId) {
+            document.getElementById(`commentText-${commentId}`).classList.add("hidden");
+            document.getElementById(`editContainer-${commentId}`).classList.remove("hidden");
+        }
+
+        // Cancel editing
+        function cancelEdit(commentId) {
+            document.getElementById(`commentText-${commentId}`).classList.remove("hidden");
+            document.getElementById(`editContainer-${commentId}`).classList.add("hidden");
+        }
+
+        // Save edited comment
+        function saveEdit(commentId) {
+            const newText = document.getElementById(`editText-${commentId}`).value;
+            const comment = findCommentById(commentId);
+
+            if (comment && newText) {
+                comment.text = newText;
+            }
+
+            renderComments();
+        }
+
+        // Post a new comment
+        function postComment() {
+            const newCommentText = document.getElementById("newComment").value;
+            if (!newCommentText) return;
+            
+            const newComment = {
+                id: Date.now(),
+                author: "New User",
+                text: newCommentText,
+                replies: []
+            };
+
+            commentsData.push(newComment);
+            document.getElementById("newComment").value = '';
+            renderComments();
+        }
+
+        // Cancel a new comment input
+        function cancelComment() {
+            document.getElementById("newComment").value = '';
+        }
+
+        // Delete a comment or reply
+        function deleteComment(commentId) {
+            commentsData = commentsData.filter(comment => {
+                if (comment.id === commentId) return false;
+                comment.replies = comment.replies.filter(reply => reply.id !== commentId);
+                return true;
+            });
+
+            renderComments();
+        }
+
+        // Reset to initial comments
+        function resetComments() {
+            commentsData = [
+                {
+                    id: 1,
+                    author: "John Doe",
+                    text: "Welcome! You can reply to the comments. But you can't delete the initial comment.",
+                    replies: [
+                        {
+                            id: 2,
+                            author: "User 1",
+                            text: "You can reply nested or delete any comment. You can edit the existing comments.",
+                        },
+                        {
+                            id: 3,
+                            author: "User 2",
+                            text: "Refresh & see the changes persist. You can reset the comments to the initial state.",
+                        }
+                    ]
+                }
+            ];
+            renderComments();
+        }
+
+        // Find comment or reply by ID
+        function findCommentById(commentId) {
+            for (let comment of commentsData) {
+                if (comment.id === commentId) return comment;
+                for (let reply of comment.replies) {
+                    if (reply.id === commentId) return reply;
+                }
+            }
+            return null;
+        }
+
+    </script>
+</body>
+</html>
